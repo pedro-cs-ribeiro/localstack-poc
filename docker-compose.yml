@@ -1,0 +1,43 @@
+services:
+  localstack:
+    image: localstack/localstack:3.8
+    container_name: localstack-poc
+    ports:
+      - "4566:4566"            # Edge port - all AWS services
+      - "4510-4559:4510-4559"  # External service ports
+    environment:
+      - SERVICES=s3,sns,sqs,lambda,dynamodb,iam,logs,cloudwatch
+      - DEBUG=0
+      - LAMBDA_EXECUTOR=docker-reuse
+      - LOCALSTACK_HOST=localhost
+      - PERSISTENCE=0          # Set to 1 to keep data across restarts
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "./scripts/init:/etc/localstack/init/ready.d"
+      - "./lambdas:/opt/code/lambdas"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+
+  # Provisions resources after LocalStack is healthy.
+  # Idempotent: safe to re-run.
+  provisioner:
+    image: hashicorp/terraform:1.9
+    container_name: localstack-provisioner
+    depends_on:
+      localstack:
+        condition: service_healthy
+    working_dir: /infra
+    volumes:
+      - "./infra:/infra"
+      - "./lambdas:/lambdas"
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        terraform init -input=false &&
+        terraform apply -auto-approve -input=false &&
+        echo "✅ Infrastructure provisioned"

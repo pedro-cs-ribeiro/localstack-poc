@@ -1,0 +1,26 @@
+[project]
+name = "claims-processor"
+version = "0.1.0"
+description = "LocalStack POC — claims processing pipeline"
+requires-python = ">=3.11"
+dependencies = [
+    "boto3>=1.34",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-timeout>=2.3",
+    "moto[s3,dynamodb,sqs,sns]>=5.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+markers = [
+    "integration: end-to-end tests requiring LocalStack to be running",
+    "unit: fast in-process tests with no external dependencies",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
